@@ -1,0 +1,232 @@
+<!doctype html>
+<html>
+	<head>
+		
+		<meta charset="UTF-8">
+		<meta name="description" content="A scatterplot made with the D3 JS library.">
+		<meta name="keywords" content="datadriven documents D3 javascript library scatter plot">
+		<meta name="author" content="Nikolai Riedel">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	
+		
+		<link rel="stylesheet" type="text/css" href="index.css">
+		<script src="https://d3js.org/d3.v4.js"></script>
+		
+		<style>
+		
+		</style>
+	</head>
+	
+	<body>
+	
+		<script>
+		
+			(function(){
+				
+				if(typeof d3 !== "undefined"){
+					
+					let margin = {
+							top: 50,
+							bottom: 50,
+							left: 50,
+							right: 200
+					}
+					
+					const height = 600 - margin.top - margin.bottom;
+					const width = 800 - margin.left - margin.right;
+					
+					let xScale = d3.scaleLinear()
+								   .range([0, width]);
+					
+					let yScale = d3.scaleLinear()
+								   .range([height, 0]);
+					
+					let xAxis = d3.axisBottom().scale(xScale);
+					let yAxis = d3.axisLeft().scale(yScale);
+					
+					
+					let svg = d3.select("body").append("svg")
+											     .attr("height", height + margin.top + margin.bottom)
+											     .attr("width", width + margin.left + margin.right)
+											     .attr("fill", "steelblue")
+											   .append("g")
+											     .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+											     .attr("height", height + margin.top + margin.bottom)
+											     .attr("width", width + margin.left + margin.right);
+
+					
+					let parserComma = d3.dsvFormat(",");
+					
+					
+					d3.request("https://dl.dropboxusercontent.com/s/v3xkfnjaw3snn7d/HFA_26_EN.csv?dl=1", function(error, data){
+
+						if (error) throw error;
+						
+						let urbanisation = parserComma.parse(data.response);
+						
+						d3.request("https://dl.dropboxusercontent.com/s/m63z9msrhs8pf22/HFA_42_EN.csv?dl=1", function(error, data){
+							
+							if (error) throw error;
+							
+							let gIndex = parserComma.parse(data.response);
+							
+							urbanisation.forEach(function(d, i, arr){
+
+									d.YEAR = +d.YEAR;
+									d.VALUE = +d.VALUE;
+								
+							});
+							
+							gIndex.forEach(function(d){
+								d.YEAR = +d.YEAR;
+								d.VALUE = +d.VALUE;
+							});
+
+							let combinedData = [];
+							let i = 0;
+							while(urbanisation.length > 0){
+								i++;
+								for(let i = 0; i < urbanisation.length; i++){
+									for (let j = 0; j < gIndex.length; j++){
+										if(urbanisation[i].COUNTRY === gIndex[j].COUNTRY && urbanisation[i].YEAR === gIndex[j].YEAR){
+											combinedData.push({
+												COUNTRY: urbanisation[i].COUNTRY,
+												PROPORTION: urbanisation[i].VALUE,
+												YEAR: urbanisation[i].YEAR,
+												INDEX: gIndex[j].VALUE
+											});
+											urbanisation.splice(i, 1);
+											gIndex.splice(j, 1);
+											break;
+										}
+									}
+									
+								}
+								if (i > 203) break;
+							}
+							
+							xScale.domain([0.4, d3.max(gIndex, function(d){return d.VALUE;})]);
+							yScale.domain([20, d3.max(urbanisation, function(d) {return d.VALUE;})]);
+							
+
+							let showDetails = function(d){
+								let textDetails = svg.append("g")
+									   .attr("class", "detailsPopup")
+									   .attr("id", "popup" + d.INDEX)
+									   .attr("transform", "translate(" + xScale(d.INDEX) + "," + yScale(d.PROPORTION) +")")
+									   .attr("width", "10rem")
+									   .attr("height", "5rem");
+								
+								textDetails.append("rect")
+									         .attr("width", "10rem")
+									         .attr("height", "5rem");
+								
+								
+								let text = textDetails.append("text")
+									   	     		    .attr("id", "popupDetails")
+									   	     		    .attr("dy", "1rem");
+								
+							    text.append("tspan")
+							    	  .attr("x", 10)
+							    	  .attr("dy", "1.5rem")
+							    	  .attr("font-size", "1rem")
+									  .attr("fill", "black")
+									.text("Country: " + d.COUNTRY);
+							    
+							    text.append("tspan")
+							    	  .attr("x", 10)
+							    	  .attr("dy", "1rem")
+							    	  .attr("font-size", "1rem")
+									  .attr("fill", "black")
+							    	.text("Year: " + d.YEAR);
+							    
+							    text.append("tspan")
+							    	  .attr("x", 10)
+				    		     	  .attr("dy", "1rem")
+							    	  .attr("font-size", "1rem")
+									  .attr("fill", "black")
+				    		     	.text("Index: " + d.INDEX);
+							    
+							    text.append("tspan")
+							          .attr("x", 10)
+				    		     	  .attr("dy", "1rem")
+							    	  .attr("font-size", "1rem")
+									  .attr("fill", "black")
+				    		     	.text("Proportion: " + d.PROPORTION + " %");
+							    			
+								
+							};
+							
+							let hideDetails = function(d){
+								document.getElementById("popup" + d.INDEX).remove();
+							};
+							
+							
+							svg.append("g")
+							   .attr("transform", "translate(0," + (height) + ")")
+							   .attr("class", "x axis")
+							   .call(xAxis)
+							 .append("text")
+							   .attr("x", width / 1.28)
+							   .attr("dy", "2em")
+							   .attr("fill", "black")
+							   .style("font-size", "1rem")
+							   .style("text-anchor", "end")
+							   .text("UNDP Human Development Index (HDI) (score)");
+						
+							svg.append("g")
+							    .attr("class", "y axis")
+							     .call(yAxis.ticks(5))
+							   .append("text")
+							     .attr("transform", "rotate(-" + 90 + ")")
+							     .attr("x", - height / 4)
+							     .attr("dy", "-2em")
+							     .attr("fill", "black")
+							     .style("font-size", "1rem")
+							     .style("text-anchor", "end")
+							     .text("Proportion of urban population (%)");
+							
+							svg.selectAll("dot")
+							     .data(combinedData)
+							     .enter().append("circle")
+							       .attr("r", 5)
+							       .attr("cx", function(d){return xScale(d.INDEX);})
+							       .attr("cy", function(d){return yScale(d.PROPORTION);})
+							       .attr("fill", function(d){return "rgb(" + (255 - Math.floor(180 * ((d.INDEX - 0.45) * 2))) + "," + (Math.floor(180 * ((d.INDEX - 0.45) * 2))) + ", 0)";})
+							       .on("mouseenter", showDetails)
+					       		   .on("mouseout", hideDetails);
+							
+							svg.append("text")
+							   .text("Correlation between urban population and Human Development Index")
+							   .attr("font-size", "12pt")
+							   .attr("fill","black")
+							   .attr("text-decoration", "underline")
+							   .attr("x", width/10);
+							
+
+							svg.append("text")
+							   .attr("y", height + margin.top)
+							   .text("Source: WHO European Data Warehouse")
+							   .attr("font-size", "8pt")
+							   .attr("fill", "black");
+							
+							
+					
+						});
+					});
+					
+					
+				}
+				else{
+					alert("The D3 library is either not supported by your browser or did not load correctly!");
+				}
+
+			})();
+		
+		
+		</script>
+	
+	
+	</body>
+
+</html>
